@@ -1,0 +1,1718 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Deskew PDF Tool</title>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/pdf.js/2.12.313/pdf.min.js"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/pdf-lib/1.17.1/pdf-lib.min.js"></script>
+    <style>
+        :root {
+            --bg-color: #ffffff;
+            --text-color: #000000;
+            --primary-color: #000000;
+            --secondary-color: #f0f0f0;
+            --accent-color: #4a4a4a;
+            --border-color: #ddd;
+            --button-bg: #000;
+            --button-text: #fff;
+        }
+
+        .dark-mode {
+            --bg-color: #1a1a1a;
+            --text-color: #ffffff;
+            --primary-color: #ffffff;
+            --secondary-color: #2d2d2d;
+            --accent-color: #a0a0a0;
+            --border-color: #444;
+            --button-bg: #fff;
+            --button-text: #000;
+        }
+
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+            transition: background-color 0.3s, color 0.3s;
+        }
+
+        body {
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+            background-color: var(--bg-color);
+            color: var(--text-color);
+            line-height: 1.6;
+        }
+
+        header {
+            background-color: #fff;
+            color: var(--bg-color);
+            padding: 1rem 2rem;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            box-shadow: 0 2px 5px rgba(0, 0, 0, 0.1);
+        }
+
+        .logo {
+            font-size: 1.5rem;
+            font-weight: bold;
+            color: black;
+        }
+
+        .theme-toggle {
+            background: none;
+            border: 1px solid #1a1a1a;
+            color: #1a1a1a;
+            padding: 0.5rem 1rem;
+            border-radius: 4px;
+            cursor: pointer;
+        }
+
+        .section-title {
+            text-align: center;
+            margin-bottom: 40px;
+            color: #FE019A;
+            position: relative;
+            background-color: white;
+            border-radius: 40px;
+            padding: 11px;
+            margin: 15px auto;
+            width: 160px;
+            height: 60px;
+            max-width: 235px;
+            box-shadow: 0 5px 15px rgba(0, 0, 0, 0.1);
+        }
+        
+        .section-title:after {
+            content: '';
+            display: block;
+            width: 110px;
+            height: 5px;
+            background: linear-gradient(135deg, #FE58AE, #fff);
+            margin: 1px auto;
+            border-radius: 4px;
+        }
+
+        .dark-mode .section-title {
+            background-color: #2d2d2d;
+            color: #FE58AE;
+        }
+
+        .dark-mode .section-title:after {
+            background: linear-gradient(135deg, #FE019A, #2d2d2d);
+        }
+
+        .container {
+            max-width: 1200px;
+            margin: 2rem auto;
+            padding: 0 1rem;
+        }
+
+        .upload-section {
+            border: 2px dashed var(--border-color);
+            padding: 2rem;
+            text-align: center;
+            margin-bottom: 2rem;
+            border-radius: 8px;
+        }
+
+        .upload-btn {
+            background-color: var(--primary-color);
+            color: var(--bg-color);
+            padding: 0.8rem 1.5rem;
+            border: none;
+            border-radius: 17px;
+            cursor: pointer;
+            font-size: 1rem;
+            margin-top: 1rem;
+        }
+
+        .files-list {
+            margin: 1.5rem 0;
+            display: none;
+        }
+
+        .file-item {
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            background-color: #FFD1DC;
+            padding: .7rem;
+            border-radius: 17px;
+            margin-bottom: 0.5rem;
+        }
+
+        .file-name {
+            flex: 1;
+        }
+
+        .remove-btn {
+            background-color: #FE019A;
+            color: white;
+            border: none;
+            padding: 0.5rem 1rem;
+            border-radius: 4px;
+            cursor: pointer;
+        }
+
+        .preview-section {
+            margin-bottom: 2rem;
+            display: none;
+        }
+
+        .preview-header {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            margin-bottom: 1rem;
+        }
+
+        .pages-container {
+            display: flex;
+            justify-content: center;
+            margin-bottom: 1.5rem;
+            min-height: 400px;
+        }
+
+        .page-thumbnail {
+            border: 1px solid var(--border-color);
+            border-radius: 8px;
+            overflow: hidden;
+            position: relative;
+            cursor: grab;
+            aspect-ratio: 3/4;
+            transition: transform 0.2s;
+            max-width: 300px;
+            box-shadow: 0 4px 8px rgba(0, 0, 0, 0.1);
+        }
+
+        .page-thumbnail:active {
+            cursor: grabbing;
+        }
+
+        .page-thumbnail canvas {
+            width: 100%;
+            height: 100%;
+            object-fit: contain;
+            transition: transform 0.3s;
+        }
+
+        .page-number {
+            position: absolute;
+            bottom: 0;
+            left: 0;
+            right: 0;
+            background-color: rgba(0, 0, 0, 0.7);
+            color: white;
+            text-align: center;
+            padding: 0.2rem;
+            font-size: 0.8rem;
+        }
+
+        .rotation-controls {
+            position: absolute;
+            top: 5px;
+            right: 5px;
+            display: flex;
+            gap: 5px;
+        }
+
+        .rotate-btn {
+            background-color: rgba(0, 0, 0, 0.7);
+            color: white;
+            border: none;
+            border-radius: 50%;
+            width: 30px;
+            height: 30px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            cursor: pointer;
+            font-size: 0.8rem;
+        }
+
+        .rotation-slider-container {
+    display: none;
+    background: var(--secondary-color);
+    padding: 1rem;
+    border-radius: 8px;
+    margin: 1rem 0;
+    border: 1px solid var(--border-color);
+}
+
+.rotation-slider {
+    width: 100%;
+    margin: 0.5rem 0;
+}
+
+.rotation-value {
+    text-align: center;
+    font-weight: bold;
+    color: var(--primary-color);
+}
+
+.rotation-controls-row {
+    display: flex;
+    justify-content: center;
+    gap: 0.5rem;
+    margin-top: 0.5rem;
+}
+
+.rotation-preset-btn {
+    padding: 0.3rem 0.8rem;
+    background: var(--button-bg);
+    color: var(--button-text);
+    border: none;
+    border-radius: 4px;
+    cursor: pointer;
+    font-size: 0.8rem;
+}
+
+.rotation-preset-btn:hover {
+    background: #FE019A;
+}
+
+        .angle-display {
+            position: absolute;
+            top: 5px;
+            left: 5px;
+            background: rgba(0,0,0,0.7);
+            color: white;
+            padding: 2px 6px;
+            border-radius: 10px;
+            font-size: 0.7rem;
+        }
+
+        .page-navigation {
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            gap: 1rem;
+            margin: 1rem 0;
+        }
+
+        .nav-btn {
+            padding: 0.5rem 1rem;
+            background-color: var(--primary-color);
+            color: var(--bg-color);
+            border: none;
+            border-radius: 17px;
+            cursor: pointer;
+            font-size: 0.9rem;
+        }
+
+        .nav-btn:disabled {
+            opacity: 0.5;
+            cursor: not-allowed;
+        }
+
+        .page-indicator {
+            font-weight: bold;
+        }
+
+        .controls {
+            background-color: #FFD1DC;
+            padding: 1.5rem;
+            border-radius: 8px;
+            margin-bottom: 2rem;
+            display: none;
+        }
+
+        .control-group {
+            margin-bottom: 1rem;
+        }
+
+        .control-group label {
+            display: block;
+            margin-bottom: 0.5rem;
+            font-weight: 500;
+        }
+
+        .control-group input, .control-group select {
+            width: 100%;
+            padding: 0.8rem;
+            border: 1px solid var(--border-color);
+            border-radius: 17px;
+            background-color: var(--bg-color);
+            color: var(--text-color);
+        }
+
+        .deskew-options {
+            display: flex;
+            gap: 1rem;
+            margin-top: 1rem;
+        }
+
+        .deskew-option {
+            flex: 1;
+            text-align: center;
+            padding: 1rem;
+            border: 2px solid var(--border-color);
+            border-radius: 8px;
+            cursor: pointer;
+            transition: all 0.3s;
+        }
+
+        .deskew-option:hover {
+            border-color: #FE019A;
+        }
+
+        .deskew-option.selected {
+            border-color: #FE019A;
+            background-color: rgba(254, 1, 154, 0.1);
+        }
+
+        .degree-controls {
+    display: none;
+    background: rgba(255, 255, 255, 0.9);
+    padding: 10px;
+    border-radius: 8px;
+    margin: 10px 0;
+    border: 1px solid var(--border-color);
+    position: absolute;
+    bottom: 40px;
+    left: 50%;
+    transform: translateX(-50%);
+    z-index: 10;
+    backdrop-filter: blur(5px);
+}
+
+.dark-mode .degree-controls {
+    background: rgba(45, 45, 45, 0.9);
+    color: white;
+}
+
+.degree-controls input {
+    background: var(--bg-color);
+    color: var(--text-color);
+}
+
+.rotate-btn:hover {
+    background-color: rgba(254, 1, 154, 0.8);
+    transform: scale(1.1);
+}
+
+        .hint {
+            font-size: 0.9rem;
+            color: var(--accent-color);
+            margin-top: 0.5rem;
+        }
+
+        .action-buttons {
+            display: flex;
+            gap: 1rem;
+            margin-top: 1.5rem;
+        }
+
+        .action-btn {
+            padding: 1rem 2rem;
+            border: none;
+            border-radius: 11px;
+            cursor: pointer;
+            font-size: 1rem;
+            font-weight: bold;
+        }
+
+        .deskew-btn {
+            background-color: var(--primary-color);
+            color: var(--bg-color);
+        }
+
+        .download-btn {
+            background-color: #FADA5E;
+            color: black;
+        }
+
+        .download-btn-small {
+            padding: 0.5rem 1rem;
+            background-color: #FADA5E;
+            color: black;
+            border: none;
+            border-radius: 6px;
+            cursor: pointer;
+            font-weight: bold;
+            transition: all 0.3s ease;
+        }
+
+        .download-btn-small:hover {
+            background-color: #e6c84d;
+            transform: scale(1.05);
+        }
+
+        .success-message {
+            background-color: #d4edda;
+            color: #155724;
+            padding: 12px;
+            border-radius: 8px;
+            margin-bottom: 1rem;
+            text-align: center;
+            border: 1px solid #c3e6cb;
+            display: none;
+        }
+
+        .another-btn {
+            background-color: #F5F5F5;
+            color: #000;
+        }
+
+        .download-section {
+            display: none;
+            margin-top: 2rem;
+        }
+
+        .download-header {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            margin-bottom: 1rem;
+        }
+
+        .download-link {
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            background-color: #ACE1AF;
+            padding: 0.7rem;
+            border-radius: 11px;
+            text-decoration: none;
+            color: var(--text-color);
+            border: 1px solid var(--border-color);
+            margin-bottom: 1rem;
+            transition: all 0.3s ease;
+        }
+
+        .download-link:hover {
+            background-color: #50C878;
+            color: var(--bg-color);
+            transform: translateY(-2px);
+            box-shadow: 0 4px 8px rgba(0,0,0,0.2);
+        }
+
+        footer {
+            background-color: var(--primary-color);
+            color: var(--bg-color);
+            text-align: center;
+            padding: 0.3rem;
+            margin-top: 2rem;
+        }
+
+        @media (max-width: 768px) {
+            .pages-container {
+                grid-template-columns: repeat(auto-fill, minmax(100px, 1fr));
+            }
+            
+            .action-buttons {
+                flex-direction: column;
+            }
+            
+            .deskew-options {
+                flex-direction: column;
+            }
+        }
+        .page-selection {
+    margin: 1rem 0;
+    padding: 1rem;
+    background: var(--secondary-color);
+    border-radius: 8px;
+    border: 1px solid var(--border-color);
+}
+
+.page-selection-header {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    margin-bottom: 1rem;
+}
+
+.page-checkboxes {
+    display: grid;
+    grid-template-columns: repeat(auto-fill, minmax(150px, 1fr));
+    gap: 0.5rem;
+    max-height: 200px;
+    overflow-y: auto;
+}
+
+.page-checkbox {
+    display: flex;
+    align-items: center;
+    gap: 0.5rem;
+    padding: 0.5rem;
+    background: var(--bg-color);
+    border-radius: 4px;
+    border: 1px solid var(--border-color);
+}
+
+.page-checkbox input[type="checkbox"] {
+    margin: 0;
+    width: auto;
+}
+
+.selection-buttons {
+    display: flex;
+    gap: 0.5rem;
+    margin-top: 1rem;
+}
+
+.selection-btn {
+    padding: 0.5rem 1rem;
+    background: var(--button-bg);
+    color: var(--button-text);
+    border: none;
+    border-radius: 4px;
+    cursor: pointer;
+    font-size: 0.8rem;
+}
+
+.selection-btn:hover {
+    background: #FE019A;
+}
+    </style>
+</head>
+<body>
+    <header>
+        <div class="logo">BlurBell</div>
+        <button class="theme-toggle" id="themeToggle">Dark Mode</button>
+    </header>
+    <h4 class="section-title">DESKEW PDF</h4>
+
+    <div class="container">
+        <section class="upload-section" id="uploadSection">
+            <h2>Upload PDF to Deskew</h2>
+            <p>Drag & drop your PDF file here or click to browse</p>
+            <input type="file" id="pdfFile" accept=".pdf" style="display: none;">
+            <button class="upload-btn" id="uploadBtn">Choose PDF File</button>
+        </section>
+
+        <section class="files-list" id="filesList">
+            <h3>Selected File</h3>
+            <div id="filesContainer"></div>
+        </section>
+
+        <section class="preview-section" id="previewSection">
+            <div class="preview-header">
+                <h2>Preview</h2>
+                <p id="previewInstructions">Click and drag to rotate pages</p>
+            </div>
+            <div class="page-navigation" id="pageNavigation" style="display: none;">
+                <button class="nav-btn" id="prevPageBtn">← Previous</button>
+                <span class="page-indicator" id="pageIndicator">Page 1 of 1</span>
+                <button class="nav-btn" id="nextPageBtn">Next →</button>
+            </div>
+            <div class="pages-container" id="pagesContainer">
+                <!-- PDF pages will be rendered here -->
+            </div>
+            <div class="rotation-slider-container" id="rotationSliderContainer">
+        <h3>Rotation Control</h3>
+        <div class="rotation-value" id="rotationValue">0°</div>
+        <input type="range" 
+               class="rotation-slider" 
+               id="rotationSlider" 
+               min="-180" 
+               max="180" 
+               value="0"
+               step="1">
+        <div class="rotation-controls-row">
+            <button class="rotation-preset-btn" data-rotation="-90">-90°</button>
+            <button class="rotation-preset-btn" data-rotation="-45">-45°</button>
+            <button class="rotation-preset-btn" data-rotation="-5">-5°</button>
+            <button class="rotation-preset-btn" data-rotation="0">0°</button>
+            <button class="rotation-preset-btn" data-rotation="5">5°</button>
+            <button class="rotation-preset-btn" data-rotation="45">45°</button>
+            <button class="rotation-preset-btn" data-rotation="90">90°</button>
+        </div>
+    </div>
+</section>
+
+        <section class="controls" id="controls">
+            <h2>Deskew Settings</h2>
+            
+            <div class="control-group">
+                <label>Deskew Method:</label>
+                <div class="deskew-options">
+                    <div class="deskew-option" id="autoDeskewOption">
+                        <h3>Auto Deskew</h3>
+                        <p>Automatically detect and fix tilted pages</p>
+                    </div>
+                    <div class="deskew-option" id="manualDeskewOption">
+                        <h3>Manual Deskew</h3>
+                        <p>Manually rotate pages using drag or buttons</p>
+                    </div>
+                </div>
+            </div>
+            
+            <!-- PAGE SELECTION SECTION ADDED HERE -->
+    <div class="control-group" id="pageSelectionGroup" style="display: none;">
+        <label>Select Pages to Deskew:</label>
+        <div class="page-selection">
+            <div class="page-selection-header">
+                <span>Choose which pages to auto-deskew</span>
+                <span id="selectedCount">0 pages selected</span>
+            </div>
+            <div class="page-checkboxes" id="pageCheckboxes">
+                <!-- Page checkboxes will be added here -->
+            </div>
+            <div class="selection-buttons">
+                <button class="selection-btn" id="selectAllBtn">Select All</button>
+                <button class="selection-btn" id="selectNoneBtn">Select None</button>
+                <button class="selection-btn" id="selectTiltedBtn">Select Only Tilted</button>
+            </div>
+        </div>
+    </div>
+
+
+            <div class="control-group">
+                <label for="fileNameInput">Output File Name:</label>
+                <input type="text" id="fileNameInput" placeholder="Enter file name (without extension)">
+                <p class="hint">If left empty, "deskewed-document" will be used</p>
+            </div>
+            
+            <div class="action-buttons">
+                <button class="action-btn deskew-btn" id="deskewBtn">Deskew PDF</button>
+                <button class="action-btn another-btn" id="anotherBtn" style="display: none;">Deskew Another File</button>
+            </div>
+        </section>
+
+        <section class="download-section" id="downloadSection">
+            <div class="download-header">
+                <h2>Download Deskewed PDF</h2>
+            </div>
+            <div class="success-message" id="successMessage">
+                ✓ PDF Deskewed Successfully! Your file has been fixed.
+            </div>
+            <div class="download-links" id="downloadLinks">
+                <!-- Download links will be added here -->
+            </div>
+        </section>
+    </div>
+
+    <footer>
+        <p>&copy; 2025 Deskew PDF Tool. All rights reserved.</p>
+    </footer>
+
+    <script>
+        // Theme toggle functionality
+const themeToggle = document.getElementById('themeToggle');
+themeToggle.addEventListener('click', () => {
+    document.body.classList.toggle('dark-mode');
+    if (document.body.classList.contains('dark-mode')) {
+        themeToggle.textContent = 'Light Mode';
+    } else {
+        themeToggle.textContent = 'Dark Mode';
+    }
+});
+
+// PDF handling
+const pdfFileInput = document.getElementById('pdfFile');
+const uploadBtn = document.getElementById('uploadBtn');
+const uploadSection = document.getElementById('uploadSection');
+const filesList = document.getElementById('filesList');
+const filesContainer = document.getElementById('filesContainer');
+const previewSection = document.getElementById('previewSection');
+const pagesContainer = document.getElementById('pagesContainer');
+const controls = document.getElementById('controls');
+const deskewBtn = document.getElementById('deskewBtn');
+const anotherBtn = document.getElementById('anotherBtn');
+const downloadSection = document.getElementById('downloadSection');
+const downloadLinks = document.getElementById('downloadLinks');
+const fileNameInput = document.getElementById('fileNameInput');
+const autoDeskewOption = document.getElementById('autoDeskewOption');
+const manualDeskewOption = document.getElementById('manualDeskewOption');
+const prevPageBtn = document.getElementById('prevPageBtn');
+const nextPageBtn = document.getElementById('nextPageBtn');
+const pageIndicator = document.getElementById('pageIndicator');
+const pageNavigation = document.getElementById('pageNavigation');
+const previewInstructions = document.getElementById('previewInstructions');
+
+// Rotation slider elements
+const rotationSliderContainer = document.getElementById('rotationSliderContainer');
+const rotationSlider = document.getElementById('rotationSlider');
+const rotationValue = document.getElementById('rotationValue');
+
+let pdfFile = null;
+let allPages = [];
+let deskewedPdfBytes = null;
+let deskewMethod = 'auto'; // Default to auto deskew
+let currentPageIndex = 0;
+
+// Set up file input
+uploadBtn.addEventListener('click', () => {
+    pdfFileInput.click();
+});
+
+pdfFileInput.addEventListener('change', handleFileSelect);
+
+// Deskew option selection
+autoDeskewOption.addEventListener('click', () => {
+    deskewMethod = 'auto';
+    autoDeskewOption.classList.add('selected');
+    manualDeskewOption.classList.remove('selected');
+    previewInstructions.textContent = "Auto deskew will automatically fix tilted pages";
+    updatePageDisplay();
+    updateManualControls();
+});
+
+manualDeskewOption.addEventListener('click', () => {
+    deskewMethod = 'manual';
+    manualDeskewOption.classList.add('selected');
+    autoDeskewOption.classList.remove('selected');
+    previewInstructions.textContent = "Use the slider below or click and drag to rotate pages";
+    updatePageDisplay();
+    updateManualControls();
+});
+
+// Set default selection
+autoDeskewOption.classList.add('selected');
+
+// Page selection elements
+const pageSelectionGroup = document.getElementById('pageSelectionGroup');
+const pageCheckboxes = document.getElementById('pageCheckboxes');
+const selectAllBtn = document.getElementById('selectAllBtn');
+const selectNoneBtn = document.getElementById('selectNoneBtn');
+const selectTiltedBtn = document.getElementById('selectTiltedBtn');
+const selectedCount = document.getElementById('selectedCount');
+
+let selectedPages = new Set();
+
+// Update page selection UI when auto deskew is selected
+autoDeskewOption.addEventListener('click', () => {
+    deskewMethod = 'auto';
+    autoDeskewOption.classList.add('selected');
+    manualDeskewOption.classList.remove('selected');
+    previewInstructions.textContent = "Auto deskew will automatically detect and fix tilted pages";
+    pageSelectionGroup.style.display = 'block';
+    updatePageDisplay();
+    updateManualControls();
+    updatePageSelectionUI();
+});
+
+manualDeskewOption.addEventListener('click', () => {
+    deskewMethod = 'manual';
+    manualDeskewOption.classList.add('selected');
+    autoDeskewOption.classList.remove('selected');
+    previewInstructions.textContent = "Use the slider below or click and drag to rotate pages";
+    pageSelectionGroup.style.display = 'none';
+    updatePageDisplay();
+    updateManualControls();
+});
+
+// Page selection handlers
+selectAllBtn.addEventListener('click', () => {
+    selectedPages = new Set(allPages.map((_, index) => index));
+    updatePageSelectionUI();
+});
+
+selectNoneBtn.addEventListener('click', () => {
+    selectedPages.clear();
+    updatePageSelectionUI();
+});
+
+selectTiltedBtn.addEventListener('click', async () => {
+    // This would need actual tilt detection - for now select all
+    selectedPages = new Set(allPages.map((_, index) => index));
+    updatePageSelectionUI();
+});
+
+function updatePageSelectionUI() {
+    pageCheckboxes.innerHTML = '';
+    selectedPages.clear();
+    
+    allPages.forEach((page, index) => {
+        const checkbox = document.createElement('div');
+        checkbox.className = 'page-checkbox';
+        
+        const input = document.createElement('input');
+        input.type = 'checkbox';
+        input.id = `page-${index}`;
+        input.checked = true;
+        input.addEventListener('change', (e) => {
+            if (e.target.checked) {
+                selectedPages.add(index);
+            } else {
+                selectedPages.delete(index);
+            }
+            updateSelectedCount();
+        });
+        
+        const label = document.createElement('label');
+        label.htmlFor = `page-${index}`;
+        label.textContent = `Page ${index + 1}`;
+        
+        checkbox.appendChild(input);
+        checkbox.appendChild(label);
+        pageCheckboxes.appendChild(checkbox);
+        
+        selectedPages.add(index);
+    });
+    
+    updateSelectedCount();
+}
+
+function updateSelectedCount() {
+    selectedCount.textContent = `${selectedPages.size} of ${allPages.length} pages selected`;
+}
+
+// Page navigation
+prevPageBtn.addEventListener('click', showPreviousPage);
+nextPageBtn.addEventListener('click', showNextPage);
+
+function showPreviousPage() {
+    if (currentPageIndex > 0) {
+        currentPageIndex--;
+        updatePageDisplay();
+    }
+}
+
+function showNextPage() {
+    if (currentPageIndex < allPages.length - 1) {
+        currentPageIndex++;
+        updatePageDisplay();
+    }
+}
+
+function updatePageDisplay() {
+    const pageThumbnails = document.querySelectorAll('.page-thumbnail');
+    pageThumbnails.forEach((thumb, index) => {
+        thumb.style.display = index === currentPageIndex ? 'block' : 'none';
+    });
+    
+    pageIndicator.textContent = `Page ${currentPageIndex + 1} of ${allPages.length}`;
+    prevPageBtn.disabled = currentPageIndex === 0;
+    nextPageBtn.disabled = currentPageIndex === allPages.length - 1;
+    
+    // Sync rotation slider with current page
+    if (deskewMethod === 'manual' && allPages[currentPageIndex]) {
+        rotationSlider.value = allPages[currentPageIndex].rotation;
+        rotationValue.textContent = `${allPages[currentPageIndex].rotation}°`;
+    }
+}
+
+// Initialize rotation slider
+rotationSlider.addEventListener('input', function() {
+    const rotation = parseInt(this.value);
+    rotationValue.textContent = `${rotation}°`;
+    
+    // Apply rotation to current page
+    if (allPages[currentPageIndex]) {
+        allPages[currentPageIndex].rotation = rotation;
+        updatePageRotationDisplay(currentPageIndex);
+    }
+});
+
+// Rotation preset buttons
+document.querySelectorAll('.rotation-preset-btn').forEach(button => {
+    button.addEventListener('click', function() {
+        const rotation = parseInt(this.dataset.rotation);
+        rotationSlider.value = rotation;
+        rotationValue.textContent = `${rotation}°`;
+        
+        // Apply rotation to current page
+        if (allPages[currentPageIndex]) {
+            allPages[currentPageIndex].rotation = rotation;
+            updatePageRotationDisplay(currentPageIndex);
+        }
+    });
+});
+
+// Function to update page rotation display
+function updatePageRotationDisplay(pageIndex) {
+    const pageThumbnail = document.querySelector(`.page-thumbnail[data-index="${pageIndex}"]`);
+    if (pageThumbnail) {
+        const angleDisplay = pageThumbnail.querySelector('.angle-display');
+        const canvas = pageThumbnail.querySelector('canvas');
+        
+        if (angleDisplay) {
+            angleDisplay.textContent = `${allPages[pageIndex].rotation}°`;
+        }
+        
+        
+        if (canvas) {
+            canvas.style.transform = `rotate(${allPages[pageIndex].rotation}deg)`;
+        }
+    }
+}
+
+function updateManualControls() {
+    const pageThumbnails = document.querySelectorAll('.page-thumbnail');
+    pageThumbnails.forEach(thumb => {
+        const degreeControls = thumb.querySelector('.degree-controls');
+        if (degreeControls) {
+            degreeControls.style.display = deskewMethod === 'manual' ? 'block' : 'none';
+        }
+        
+        // Update rotation for current page
+        const index = parseInt(thumb.dataset.index);
+        if (index === currentPageIndex) {
+            const canvas = thumb.querySelector('canvas');
+            if (canvas) {
+                canvas.style.transform = `rotate(${allPages[index].rotation}deg)`;
+            }
+        }
+    });
+    
+    // Show/hide rotation slider based on deskew method
+    if (deskewMethod === 'manual' && allPages.length > 0) {
+        rotationSliderContainer.style.display = 'block';
+        // Sync slider with current page rotation
+        rotationSlider.value = allPages[currentPageIndex].rotation;
+        rotationValue.textContent = `${allPages[currentPageIndex].rotation}°`;
+    } else {
+        rotationSliderContainer.style.display = 'none';
+    }
+}
+
+// Handle file selection
+function handleFileSelect(event) {
+    const file = event.target.files[0];
+    
+    if (!file) return;
+    
+    if (file.type !== 'application/pdf') {
+        alert('Please select a PDF file.');
+        return;
+    }
+    
+    pdfFile = file;
+    
+    // Update UI
+    updateFilesList();
+    renderAllPages();
+    
+    // Hide upload section after file is selected
+    uploadSection.style.display = 'none';
+    
+    // Show appropriate sections
+    if (pdfFile) {
+        filesList.style.display = 'block';
+        previewSection.style.display = 'block';
+        controls.style.display = 'block';
+    }
+}
+
+// Update the files list UI
+function updateFilesList() {
+    filesContainer.innerHTML = '';
+    
+    const fileItem = document.createElement('div');
+    fileItem.className = 'file-item';
+    
+    const fileName = document.createElement('div');
+    fileName.className = 'file-name';
+    fileName.textContent = pdfFile.name;
+    
+    const removeBtn = document.createElement('button');
+    removeBtn.className = 'remove-btn';
+    removeBtn.textContent = 'Remove';
+    removeBtn.addEventListener('click', removeFile);
+    
+    fileItem.appendChild(fileName);
+    fileItem.appendChild(removeBtn);
+    
+    filesContainer.appendChild(fileItem);
+}
+
+// Remove the file
+function removeFile() {
+    pdfFile = null;
+    filesList.style.display = 'none';
+    previewSection.style.display = 'none';
+    controls.style.display = 'none';
+    uploadSection.style.display = 'block';
+    allPages = [];
+    pageNavigation.style.display = 'none';
+    rotationSliderContainer.style.display = 'none'; // Hide slider when file is removed
+}
+
+// Render all pages from the PDF
+async function renderAllPages() {
+    pagesContainer.innerHTML = '';
+    allPages = [];
+    currentPageIndex = 0;
+    
+    const fileReader = new FileReader();
+    
+    await new Promise((resolve) => {
+        fileReader.onload = async function() {
+            const arrayBuffer = this.result;
+            const typedarray = new Uint8Array(arrayBuffer);
+            
+            try {
+                const pdf = await pdfjsLib.getDocument(typedarray).promise;
+                const numPages = pdf.numPages;
+                
+                for (let j = 1; j <= numPages; j++) {
+                    const pageData = {
+                        pageNumber: j,
+                        arrayBuffer: arrayBuffer,
+                        pdfDoc: pdf,
+                        rotation: 0 // Reset rotation when re-rendering
+                    };
+                    
+                    allPages.push(pageData);
+                    
+                    // Render the page thumbnail
+                    await renderPageThumbnail(pageData, allPages.length - 1);
+                }
+                
+                // Show page navigation if there are multiple pages
+                if (allPages.length > 1) {
+                    pageNavigation.style.display = 'flex';
+                }
+                
+                updatePageDisplay();
+                updateManualControls();
+                resolve();
+            } catch (error) {
+                console.error('Error loading PDF:', error);
+                alert(`Error loading PDF: ${pdfFile.name}. Please try again with a valid PDF file.`);
+                resolve();
+            }
+        };
+        
+        fileReader.readAsArrayBuffer(pdfFile);
+    });
+}
+
+// HIGH QUALITY: Render a single page thumbnail
+async function renderPageThumbnail(pageData, index) {
+    const pageThumbnail = document.createElement('div');
+    pageThumbnail.className = 'page-thumbnail';
+    pageThumbnail.dataset.index = index;
+    pageThumbnail.style.display = 'none';
+    pagesContainer.appendChild(pageThumbnail);
+    
+    try {
+        const page = await pageData.pdfDoc.getPage(pageData.pageNumber);
+        
+        // Higher quality for thumbnails but with reasonable limits
+        const viewport = page.getViewport({ 
+            scale: Math.min(1.5, 800 / page.getViewport({ scale: 1 }).width) 
+        });
+        
+        const canvas = document.createElement('canvas');
+        const context = canvas.getContext('2d');
+        
+        // Set higher DPI for better quality
+        const scale = window.devicePixelRatio || 1;
+        canvas.width = viewport.width * scale;
+        canvas.height = viewport.height * scale;
+        canvas.style.width = viewport.width + 'px';
+        canvas.style.height = viewport.height + 'px';
+        
+        context.scale(scale, scale);
+        
+        const renderContext = {
+            canvasContext: context,
+            viewport: viewport
+        };
+        
+        await page.render(renderContext).promise;
+        pageThumbnail.appendChild(canvas);
+        
+        // Add rotation controls
+        const rotationControls = document.createElement('div');
+        rotationControls.className = 'rotation-controls';
+        
+        const rotateLeftBtn = document.createElement('button');
+        rotateLeftBtn.className = 'rotate-btn';
+        rotateLeftBtn.innerHTML = '↶';
+        rotateLeftBtn.title = 'Rotate 90° Left';
+        rotateLeftBtn.addEventListener('click', (e) => {
+            e.stopPropagation();
+            rotatePage(index, -90);
+        });
+        
+        const rotateRightBtn = document.createElement('button');
+        rotateRightBtn.className = 'rotate-btn';
+        rotateRightBtn.innerHTML = '↷';
+        rotateRightBtn.title = 'Rotate 90° Right';
+        rotateRightBtn.addEventListener('click', (e) => {
+            e.stopPropagation();
+            rotatePage(index, 90);
+        });
+
+        // Add fine rotation controls
+        const fineRotateLeftBtn = document.createElement('button');
+        fineRotateLeftBtn.className = 'rotate-btn';
+        fineRotateLeftBtn.innerHTML = '◀';
+        fineRotateLeftBtn.title = 'Rotate 1° Left';
+        fineRotateLeftBtn.style.fontSize = '0.6rem';
+        fineRotateLeftBtn.addEventListener('click', (e) => {
+            e.stopPropagation();
+            rotatePage(index, -1);
+        });
+
+        const fineRotateRightBtn = document.createElement('button');
+        fineRotateRightBtn.className = 'rotate-btn';
+        fineRotateRightBtn.innerHTML = '▶';
+        fineRotateRightBtn.title = 'Rotate 1° Right';
+        fineRotateRightBtn.style.fontSize = '0.6rem';
+        fineRotateRightBtn.addEventListener('click', (e) => {
+            e.stopPropagation();
+            rotatePage(index, 1);
+        });
+        
+        // Add rotation angle display
+        const angleDisplay = document.createElement('div');
+        angleDisplay.className = 'angle-display';
+        angleDisplay.textContent = `${pageData.rotation}°`;
+        
+        rotationControls.appendChild(fineRotateLeftBtn);
+        rotationControls.appendChild(rotateLeftBtn);
+        rotationControls.appendChild(rotateRightBtn);
+        rotationControls.appendChild(fineRotateRightBtn);
+        pageThumbnail.appendChild(rotationControls);
+        pageThumbnail.appendChild(angleDisplay);
+        
+        // Add drag-to-rotate functionality for manual mode
+        let isDragging = false;
+        let startAngle = 0;
+        let currentRotation = pageData.rotation;
+        
+        function handleMouseDown(e) {
+            if (deskewMethod !== 'manual') return;
+            
+            isDragging = true;
+            pageThumbnail.style.cursor = 'grabbing';
+            const rect = pageThumbnail.getBoundingClientRect();
+            const centerX = rect.left + rect.width / 2;
+            const centerY = rect.top + rect.height / 2;
+            startAngle = Math.atan2(e.clientY - centerY, e.clientX - centerX);
+            e.preventDefault();
+        }
+        
+        function handleMouseMove(e) {
+            if (!isDragging || deskewMethod !== 'manual') return;
+            
+            const rect = pageThumbnail.getBoundingClientRect();
+            const centerX = rect.left + rect.width / 2;
+            const centerY = rect.top + rect.height / 2;
+            const currentAngle = Math.atan2(e.clientY - centerY, e.clientX - centerX);
+            const angleDiff = (currentAngle - startAngle) * (180 / Math.PI);
+            
+            // Update rotation (smooth dragging)
+            currentRotation = (pageData.rotation + angleDiff) % 360;
+            angleDisplay.textContent = `${Math.round(currentRotation)}°`;
+            
+            // Apply visual rotation to thumbnail
+            canvas.style.transform = `rotate(${currentRotation}deg)`;
+        }
+        
+        function handleMouseUp() {
+            if (isDragging && deskewMethod === 'manual') {
+                isDragging = false;
+                pageThumbnail.style.cursor = 'grab';
+                // Save the final rotation to pageData
+                pageData.rotation = Math.round(currentRotation);
+                angleDisplay.textContent = `${pageData.rotation}°`;
+                
+                // Sync with rotation slider if this is the current page
+                if (index === currentPageIndex) {
+                    rotationSlider.value = pageData.rotation;
+                    rotationValue.textContent = `${pageData.rotation}°`;
+                }
+            }
+        }
+        
+        // Set up event listeners for drag-to-rotate
+        pageThumbnail.addEventListener('mousedown', handleMouseDown);
+        document.addEventListener('mousemove', handleMouseMove);
+        document.addEventListener('mouseup', handleMouseUp);
+        
+        const pageNumber = document.createElement('div');
+        pageNumber.className = 'page-number';
+        pageNumber.textContent = `Page ${pageData.pageNumber}`;
+        pageThumbnail.appendChild(pageNumber);
+    } catch (error) {
+        console.error('Error rendering page:', error);
+    }
+}
+
+// Rotate a page
+function rotatePage(index, degrees) {
+    allPages[index].rotation = (allPages[index].rotation + degrees) % 360;
+    
+    // Update the angle display
+    const pageThumbnail = document.querySelector(`.page-thumbnail[data-index="${index}"]`);
+    if (pageThumbnail) {
+        const angleDisplay = pageThumbnail.querySelector('.angle-display');
+        
+        if (angleDisplay) {
+            angleDisplay.textContent = `${allPages[index].rotation}°`;
+        }
+        
+        
+        // Apply visual rotation to canvas
+        const canvas = pageThumbnail.querySelector('canvas');
+        if (canvas) {
+            canvas.style.transform = `rotate(${allPages[index].rotation}deg)`;
+        }
+    }
+    
+    // Sync with rotation slider if this is the current page
+    if (index === currentPageIndex) {
+        rotationSlider.value = allPages[index].rotation;
+        rotationValue.textContent = `${allPages[index].rotation}°`;
+    }
+}
+
+// Deskew PDF functionality
+deskewBtn.addEventListener('click', deskewPdf);
+anotherBtn.addEventListener('click', resetTool);
+
+async function deskewPdf() {
+    if (!pdfFile) {
+        alert('Please upload a PDF file.');
+        return;
+    }
+    
+    deskewBtn.textContent = 'Processing...';
+    deskewBtn.disabled = true;
+    
+    try {
+        const { PDFDocument, degrees, rgb } = PDFLib;
+        const deskewedPdf = await PDFDocument.create();
+        
+        // Load the original PDF
+        const originalPdfBytes = await pdfFile.arrayBuffer();
+        const sourcePdf = await PDFDocument.load(originalPdfBytes);
+        
+        // Process each page
+        for (let i = 0; i < allPages.length; i++) {
+            const pageData = allPages[i];
+            
+            if (deskewMethod === 'auto') {
+                // Auto deskew - only process selected pages
+                if (selectedPages.has(i)) {
+                    await applyAutoDeskew(deskewedPdf, sourcePdf, pageData, i);
+                } else {
+                    // Add original page without processing
+                    const [originalPage] = await deskewedPdf.copyPages(sourcePdf, [pageData.pageNumber - 1]);
+                    deskewedPdf.addPage(originalPage);
+                }
+            } else {
+                // Manual deskew - handle arbitrary rotations by embedding as image
+                await applyManualRotation(deskewedPdf, sourcePdf, pageData, i);
+            }
+        }        
+        // Save the deskewed PDF
+        deskewedPdfBytes = await deskewedPdf.save();
+        
+        // Create download link
+        const blob = new Blob([deskewedPdfBytes], { type: 'application/pdf' });
+        const url = URL.createObjectURL(blob);
+        
+        // Use custom file name or default
+        const fileName = (fileNameInput.value || 'deskewed-document') + '.pdf';
+        
+        downloadLinks.innerHTML = '';
+        const downloadLink = document.createElement('a');
+        downloadLink.className = 'download-link';
+        downloadLink.href = url;
+        downloadLink.download = fileName;
+        
+        const linkFileName = document.createElement('span');
+        linkFileName.textContent = fileName;
+        
+        const downloadBtnSmall = document.createElement('button');
+        downloadBtnSmall.className = 'download-btn-small';
+        downloadBtnSmall.textContent = 'Download';
+        
+        downloadLink.appendChild(linkFileName);
+        downloadLink.appendChild(downloadBtnSmall);
+        downloadLinks.appendChild(downloadLink);
+        
+        // Show success message and download section
+        const successMessage = document.getElementById('successMessage');
+        successMessage.style.display = 'block';
+        downloadSection.style.display = 'block';
+        anotherBtn.style.display = 'block';
+        
+        // Hide success message after 3 seconds
+        setTimeout(() => {
+            successMessage.style.display = 'none';
+        }, 3000);
+        
+    } catch (error) {
+        console.error('Error deskewing PDF:', error);
+        alert('Error deskewing PDF. Please try again. Error: ' + error.message);
+    }
+    
+    deskewBtn.textContent = 'Deskew PDF';
+    deskewBtn.disabled = false;
+}
+
+// HIGH QUALITY: Auto deskew functionality with tilt detection
+async function applyAutoDeskew(deskewedPdf, sourcePdf, pageData, pageIndex) {
+    const { degrees, rgb } = PDFLib;
+    
+    try {
+        const [originalPage] = await deskewedPdf.copyPages(sourcePdf, [pageData.pageNumber - 1]);
+        const originalSize = originalPage.getSize();
+        
+        // Create high-resolution canvas for analysis
+        const tempCanvas = document.createElement('canvas');
+        const tempCtx = tempCanvas.getContext('2d');
+        
+        const pdfJsDoc = await pdfjsLib.getDocument(await sourcePdf.save()).promise;
+        const pdfJsPage = await pdfJsDoc.getPage(pageData.pageNumber);
+        
+        // Use adequate resolution for tilt detection (not too high for performance)
+        const viewport = pdfJsPage.getViewport({ scale: 1.5 });
+        
+        // Set canvas with good DPI
+        const pixelRatio = 2; // Good balance of quality and performance
+        tempCanvas.width = viewport.width * pixelRatio;
+        tempCanvas.height = viewport.height * pixelRatio;
+        tempCanvas.style.width = viewport.width + 'px';
+        tempCanvas.style.height = viewport.height + 'px';
+        
+        tempCtx.scale(pixelRatio, pixelRatio);
+        
+        await pdfJsPage.render({
+            canvasContext: tempCtx,
+            viewport: viewport,
+            intent: 'print'
+        }).promise;
+        
+        const detectedAngle = await detectPageTilt(tempCanvas);
+        
+        console.log(`Page ${pageIndex + 1}: Detected correction angle: ${detectedAngle}°`);
+        
+        if (Math.abs(detectedAngle) > 0.5) {
+            console.log(`Auto-correcting page ${pageIndex + 1} by ${detectedAngle}°`);
+            
+            if (Math.abs(detectedAngle) % 90 === 0) {
+                // Use native PDF rotation for best quality
+                originalPage.setRotation(degrees(detectedAngle));
+                deskewedPdf.addPage(originalPage);
+            } else {
+                // For arbitrary angles, use high-quality image rotation
+                const rotatedCanvas = await rotateCanvasHighQuality(tempCanvas, detectedAngle);
+                
+                // Use JPEG with high quality
+                const imageData = rotatedCanvas.toDataURL('image/jpeg', 0.95);
+                const jpgImage = await deskewedPdf.embedJpg(imageData);
+                
+                const deskewedPage = deskewedPdf.addPage([originalSize.width, originalSize.height]);
+                deskewedPage.drawImage(jpgImage, {
+                    x: 0,
+                    y: 0,
+                    width: originalSize.width,
+                    height: originalSize.height,
+                });
+            }
+        } else {
+            console.log(`Page ${pageIndex + 1}: No significant tilt detected, using original page`);
+            deskewedPdf.addPage(originalPage);
+        }
+        
+    } catch (error) {
+        console.error(`Error auto-deskewing page ${pageIndex + 1}:`, error);
+        const [originalPage] = await deskewedPdf.copyPages(sourcePdf, [pageData.pageNumber - 1]);
+        deskewedPdf.addPage(originalPage);
+    }
+}
+
+// HIGH QUALITY: Manual rotation with maintained quality
+async function applyManualRotation(deskewedPdf, sourcePdf, pageData, pageIndex) {
+    const { degrees, rgb } = PDFLib;
+    
+    try {
+        const [originalPage] = await deskewedPdf.copyPages(sourcePdf, [pageData.pageNumber - 1]);
+        const originalSize = originalPage.getSize();
+        
+        let rotation = pageData.rotation % 360;
+        if (rotation < 0) rotation += 360;
+        
+        // For 0° or 90° increments, use native PDF rotation (best quality)
+        if (rotation === 0 || rotation % 90 === 0) {
+            if (rotation !== 0) {
+                originalPage.setRotation(degrees(rotation));
+            }
+            deskewedPdf.addPage(originalPage);
+            return;
+        }
+        
+        console.log(`Page ${pageIndex + 1}: Applying high-quality rotation ${rotation}°`);
+        
+        // Create high-resolution canvas
+        const tempCanvas = document.createElement('canvas');
+        const tempCtx = tempCanvas.getContext('2d');
+        
+        const pdfJsDoc = await pdfjsLib.getDocument(await sourcePdf.save()).promise;
+        const pdfJsPage = await pdfJsDoc.getPage(pageData.pageNumber);
+        
+        // Use higher resolution for better quality
+        const baseViewport = pdfJsPage.getViewport({ scale: 1 });
+        const scale = Math.min(3.0, 3000 / Math.max(baseViewport.width, baseViewport.height));
+        const viewport = pdfJsPage.getViewport({ scale: scale });
+        
+        // Set canvas with high DPI
+        const pixelRatio = window.devicePixelRatio || 1;
+        tempCanvas.width = viewport.width * pixelRatio;
+        tempCanvas.height = viewport.height * pixelRatio;
+        tempCanvas.style.width = viewport.width + 'px';
+        tempCanvas.style.height = viewport.height + 'px';
+        
+        tempCtx.scale(pixelRatio, pixelRatio);
+        
+        // Render with higher quality settings
+        const renderContext = {
+            canvasContext: tempCtx,
+            viewport: viewport,
+            intent: 'print' // Higher quality rendering
+        };
+        
+        await pdfJsPage.render(renderContext).promise;
+        
+        // Create final canvas with same high quality
+        const finalCanvas = document.createElement('canvas');
+        const finalCtx = finalCanvas.getContext('2d');
+        
+        finalCanvas.width = tempCanvas.width;
+        finalCanvas.height = tempCanvas.height;
+        finalCanvas.style.width = tempCanvas.style.width;
+        finalCanvas.style.height = tempCanvas.style.height;
+        
+        finalCtx.scale(pixelRatio, pixelRatio);
+        
+        // Fill with white background
+        finalCtx.fillStyle = 'white';
+        finalCtx.fillRect(0, 0, viewport.width, viewport.height);
+        
+        // Apply high-quality rotation
+        const rad = rotation * Math.PI / 180;
+        finalCtx.translate(viewport.width / 2, viewport.height / 2);
+        finalCtx.rotate(rad);
+        
+        // Enable high-quality image smoothing
+        finalCtx.imageSmoothingEnabled = true;
+        finalCtx.imageSmoothingQuality = 'high';
+        
+        // Draw at full resolution
+        finalCtx.drawImage(
+            tempCanvas,
+            -viewport.width / 2,
+            -viewport.height / 2,
+            viewport.width,
+            viewport.height
+        );
+        
+        // Use JPEG with high quality to avoid PNG compression artifacts
+        const imageData = finalCanvas.toDataURL('image/jpeg', 0.95);
+        const jpgImage = await deskewedPdf.embedJpg(imageData);
+        
+        const rotatedPage = deskewedPdf.addPage([originalSize.width, originalSize.height]);
+        rotatedPage.drawImage(jpgImage, {
+            x: 0,
+            y: 0,
+            width: originalSize.width,
+            height: originalSize.height,
+        });
+        
+    } catch (error) {
+        console.error(`Error rotating page ${pageIndex + 1}:`, error);
+        // Fallback to original page
+        const [originalPage] = await deskewedPdf.copyPages(sourcePdf, [pageData.pageNumber - 1]);
+        deskewedPdf.addPage(originalPage);
+    }
+}
+
+// HIGH QUALITY: Canvas rotation function
+function rotateCanvasHighQuality(canvas, angle) {
+    const rad = angle * Math.PI / 180;
+    const rotatedCanvas = document.createElement('canvas');
+    const ctx = rotatedCanvas.getContext('2d');
+    
+    const sin = Math.abs(Math.sin(rad));
+    const cos = Math.abs(Math.cos(rad));
+    const newWidth = canvas.width * cos + canvas.height * sin;
+    const newHeight = canvas.width * sin + canvas.height * cos;
+    
+    // Maintain high DPI
+    const pixelRatio = window.devicePixelRatio || 1;
+    rotatedCanvas.width = newWidth;
+    rotatedCanvas.height = newHeight;
+    rotatedCanvas.style.width = (newWidth / pixelRatio) + 'px';
+    rotatedCanvas.style.height = (newHeight / pixelRatio) + 'px';
+    
+    ctx.scale(pixelRatio, pixelRatio);
+    
+    // Fill with white background
+    ctx.fillStyle = 'white';
+    ctx.fillRect(0, 0, newWidth / pixelRatio, newHeight / pixelRatio);
+    
+    // Enable highest quality rendering
+    ctx.imageSmoothingEnabled = true;
+    ctx.imageSmoothingQuality = 'high';
+    
+    // Rotate and draw from center
+    ctx.translate(newWidth / (2 * pixelRatio), newHeight / (2 * pixelRatio));
+    ctx.rotate(rad);
+    ctx.drawImage(
+        canvas, 
+        -canvas.width / (2 * pixelRatio), 
+        -canvas.height / (2 * pixelRatio),
+        canvas.width / pixelRatio,
+        canvas.height / pixelRatio
+    );
+    
+    return rotatedCanvas;
+}
+
+// Page tilt detection function (unchanged)
+async function detectPageTilt(canvas) {
+    const ctx = canvas.getContext('2d');
+    const width = canvas.width;
+    const height = canvas.height;
+    
+    // Get image data
+    const imageData = ctx.getImageData(0, 0, width, height);
+    const data = imageData.data;
+    
+    // Convert to grayscale
+    const grayscale = [];
+    for (let i = 0; i < data.length; i += 4) {
+        const gray = 0.299 * data[i] + 0.587 * data[i + 1] + 0.114 * data[i + 2];
+        grayscale.push(gray);
+    }
+    
+    // Enhanced edge detection with multiple thresholds
+    const edges = [];
+    const edgeThresholds = [30, 50, 70]; // Multiple thresholds for better detection
+    
+    for (let threshold of edgeThresholds) {
+        for (let y = 1; y < height - 1; y++) {
+            for (let x = 1; x < width - 1; x++) {
+                const idx = y * width + x;
+                
+                // Sobel operator for edge detection
+                const gx = 
+                    -grayscale[(y-1)*width + (x-1)] + grayscale[(y-1)*width + (x+1)] +
+                    -2 * grayscale[y*width + (x-1)] + 2 * grayscale[y*width + (x+1)] +
+                    -grayscale[(y+1)*width + (x-1)] + grayscale[(y+1)*width + (x+1)];
+                    
+                const gy = 
+                    -grayscale[(y-1)*width + (x-1)] - 2 * grayscale[(y-1)*width + x] - grayscale[(y-1)*width + (x+1)] +
+                    grayscale[(y+1)*width + (x-1)] + 2 * grayscale[(y+1)*width + x] + grayscale[(y+1)*width + (x+1)];
+                    
+                const magnitude = Math.sqrt(gx * gx + gy * gy);
+                
+                if (magnitude > threshold) {
+                    const angle = Math.atan2(gy, gx);
+                    edges.push({ x, y, angle, magnitude });
+                }
+            }
+        }
+    }
+    
+    if (edges.length === 0) {
+        return 0; // No edges detected, assume straight
+    }
+    
+    // Analyze angles with weighted voting based on edge magnitude
+    const angleBuckets = {};
+    const angleStep = Math.PI / 180; // 1 degree buckets
+    
+    edges.forEach(edge => {
+        const angle = edge.angle;
+        const weight = edge.magnitude / 100; // Weight by edge strength
+        
+        // Focus on near-horizontal and near-vertical edges
+        const normalizedAngle = (angle + Math.PI) % Math.PI; // Normalize to 0-PI
+        
+        if (normalizedAngle < Math.PI/6 || normalizedAngle > 5*Math.PI/6) {
+            // Near horizontal edges (0° and 180°)
+            const bucket = Math.round(normalizedAngle / angleStep) * angleStep;
+            angleBuckets[bucket] = (angleBuckets[bucket] || 0) + weight;
+        } else if (Math.abs(normalizedAngle - Math.PI/2) < Math.PI/6) {
+            // Near vertical edges (90°)
+            const bucket = Math.round(normalizedAngle / angleStep) * angleStep;
+            angleBuckets[bucket] = (angleBuckets[bucket] || 0) + weight;
+        }
+    });
+    
+    // Find the most dominant angle
+    let maxWeight = 0;
+    let dominantAngle = 0;
+    
+    Object.keys(angleBuckets).forEach(bucket => {
+        if (angleBuckets[bucket] > maxWeight) {
+            maxWeight = angleBuckets[bucket];
+            dominantAngle = parseFloat(bucket);
+        }
+    });
+    
+    // Convert to degrees and calculate correction angle
+    let angleDegrees = dominantAngle * (180 / Math.PI);
+    
+    // Determine if we need to correct to nearest 90-degree orientation
+    const remainder = angleDegrees % 90;
+    let correctionAngle = 0;
+    
+    if (remainder > 45) {
+        correctionAngle = 90 - remainder;
+    } else if (remainder < -45) {
+        correctionAngle = -90 - remainder;
+    } else {
+        correctionAngle = -remainder;
+    }
+    
+    // Additional check for page aspect ratio
+    const aspectRatio = width / height;
+    if (aspectRatio > 1.2) {
+        // Landscape page - should be near 0° or 180°
+        if (Math.abs(angleDegrees - 90) < 45) {
+            correctionAngle = -90;
+        }
+    } else if (aspectRatio < 0.8) {
+        // Portrait page - should be near 90°
+        if (Math.abs(angleDegrees) < 45) {
+            correctionAngle = 90;
+        }
+    }
+    
+    console.log(`Detected angle: ${angleDegrees}°, Correction: ${correctionAngle}°`);
+    return correctionAngle;
+}
+
+function resetTool() {
+    uploadSection.style.display = 'block';
+    filesList.style.display = 'none';
+    previewSection.style.display = 'none';
+    controls.style.display = 'none';
+    downloadSection.style.display = 'none';
+    anotherBtn.style.display = 'none';
+    pdfFileInput.value = '';
+    fileNameInput.value = ''; // Clear the file name input
+    pdfFile = null;
+    allPages = [];
+    deskewedPdfBytes = null;
+    pageNavigation.style.display = 'none';
+    rotationSliderContainer.style.display = 'none';
+    const successMessage = document.getElementById('successMessage');
+    successMessage.style.display = 'none';
+}
+
+// Handle drag and drop for file upload
+uploadSection.addEventListener('dragover', (e) => {
+    e.preventDefault();
+    uploadSection.style.borderColor = '#000';
+});
+
+uploadSection.addEventListener('dragleave', () => {
+    uploadSection.style.borderColor = 'var(--border-color)';
+});
+
+uploadSection.addEventListener('drop', (e) => {
+    e.preventDefault();
+    uploadSection.style.borderColor = 'var(--border-color)';
+    
+    if (e.dataTransfer.files.length) {
+        pdfFileInput.files = e.dataTransfer.files;
+        handleFileSelect({ target: { files: e.dataTransfer.files } });
+    }
+});
+    </script>
+</body>
+</html>
